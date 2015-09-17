@@ -24,7 +24,9 @@ class AirGuitarApp(App):
 
 	def build(self):
 		try:
+			# Enable gyroscope
 			gyroscope.enable()
+			# Set timer who check for movements
 			Clock.schedule_interval(self.on_moove, 1.0/5) #5 calls per second 1.0/5
 		except:
 			print 'failed to enable gyroscope'
@@ -50,10 +52,14 @@ class AirGuitarApp(App):
 			print 'Cannot read gyroscope'
 
 	def diff_gyr_value(self, last_val, new_val):
+		# If last value is equal to new value
 		if last_val == new_val:
+			# No movements
 			return 0
 		else:
+			# Else, return the difference between the two values
 			return abs(last_val - new_val)
+		# New value is now the last one
 		self.last_gyr_val3 = new_val
 
 	def release_audio(self):
