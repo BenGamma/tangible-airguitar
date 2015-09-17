@@ -7,7 +7,7 @@ from kivy.core.audio import SoundLoader
 from kivy.properties import ObjectProperty, NumericProperty
 from kivy.clock import Clock
 from glob import glob
-from plyer import accelerometer
+from plyer import gyroscope
 from os.path import dirname, join
 
 class AirGuitarBackground(BoxLayout):
@@ -15,38 +15,46 @@ class AirGuitarBackground(BoxLayout):
 
 class AirGuitarApp(App):
 
-	# Catch audio files names
-	audio_files = glob(join(dirname(__file__), '*.wav'))
-	
+	# Catch sorted audio files names
+	audio_files = sorted(glob(join(dirname(__file__), '*.wav')))	
 	sound = ObjectProperty(None, allownone=True)
-	volume = NumericProperty(1.0)
 	file_to_read_index = 0
+	volume_for_moove = 0
+	last_gyr_val3 = 0
 
 	def build(self):
 		try:
-			accelerometer.enable()
+			gyroscope.enable()
 			Clock.schedule_interval(self.on_moove, 1.0/5) #5 calls per second 1.0/5
 		except:
-			print 'failed to enable accelerometer'
+			print 'failed to enable gyroscope'
 		return AirGuitarBackground()
 
 	def on_moove(self, dt):
 		try:
-			# Get values from accelerometer
-			x_value = accelerometer.acceleration[0]
-			y_value = accelerometer.acceleration[1]
-			z_value = accelerometer.acceleration[2]
-			if z_value > 4 and z_value < 7:
+			# Get value from gyroscope
+			axe3_value = gyroscope.orientation[2]
+			# If phone is shaked
+			if self.diff_gyr_value(self.last_gyr_val3, axe3_value) >= 2:
+				# Get value of shake to set volume
+				volume_for_moove = (self.diff_gyr_value(self.last_gyr_val3, axe3_value))/10
 				# If there is no sound
 				if self.sound is None:
 					# Play it
-					self.play_sample()
+					self.play_sample(volume_for_moove)
 				# Elif a sound has been played and is in stop state
 				elif self.sound.status == 'stop':
 					# Clean memory
 					self.release_audio()
 		except:
-			print 'Cannot read accelerometer'
+			print 'Cannot read gyroscope'
+
+	def diff_gyr_value(self, last_val, new_val):
+		if last_val == new_val:
+			return 0
+		else:
+			return abs(last_val - new_val)
+		self.last_gyr_val3 = new_val
 
 	def release_audio(self):
 		if self.sound:
@@ -54,14 +62,14 @@ class AirGuitarApp(App):
 			self.sound.unload()
 			self.sound = None		
 
-	def play_sample(self):
+	def play_sample(self, volume):
 		# If actual index is equal to the length of the audio file tuple
 		if self.file_to_read_index == len(self.audio_files):
 			# We've read all the file, start again from index 0
 			self.file_to_read_index = 0
 		# Play sound	
 		self.sound = SoundLoader.load(self.audio_files[self.file_to_read_index])
-		self.sound.volume = self.volume
+		self.sound.volume = volume
 		self.sound.play()
 		# Increment index
 		self.file_to_read_index = self.file_to_read_index + 1
