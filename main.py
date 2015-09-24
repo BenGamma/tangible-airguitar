@@ -16,11 +16,15 @@ class AirGuitarBackground(BoxLayout):
 class AirGuitarApp(App):
 
 	# Catch sorted audio files names
-	audio_files = sorted(glob(join(dirname(__file__), '*.wav')))	
+	audio_files_notes = sorted(glob(join(dirname(__file__), '*_note.wav')))
+	audio_files_chords = sorted(glob(join(dirname(__file__), '*_chord.wav')))
+
 	sound = ObjectProperty(None, allownone=True)
-	file_to_read_index = 0
-	volume_for_moove = 0
+	note_file_index = 0
+	chord_file_index = 0
+	volume = 1.0
 	last_gyr_val3 = 0
+	sound_type = None
 
 	def build(self):
 		try:
@@ -37,16 +41,38 @@ class AirGuitarApp(App):
 			# Get value from gyroscope
 			axe3_value = gyroscope.orientation[2]
 			# If phone is shaked
-			if self.diff_gyr_value(self.last_gyr_val3, axe3_value) >= 2:
-				# Get value of shake to set volume
-				volume_for_moove = (self.diff_gyr_value(self.last_gyr_val3, axe3_value))/10
+			difference = self.diff_gyr_value(self.last_gyr_val3, axe3_value)
+			if (difference >= 1) and (difference <= 2):
 				# If there is no sound
 				if self.sound is None:
 					# Play it
-					self.play_sample(volume_for_moove)
+					self.sound_type = "note"
+					self.play_sample(self.sound_type)
+					# Increment index
+					self.note_file_index = self.note_file_index + 1
 				# Elif a sound has been played and is in stop state
 				elif self.sound.status == 'stop':
 					# Clean memory
+					self.release_audio()
+				elif self.sound.status == 'play':
+					# Clean memory
+					self.sound.stop()
+					self.release_audio()
+			elif difference > 3:
+				# If there is no sound
+				if self.sound is None:
+					# Play it
+					self.sound_type = "chord"
+					self.play_sample(self.sound_type)
+					# Increment index
+					self.chord_file_index = self.chord_file_index + 1
+				# Elif a sound has been played and is in stop state
+				elif self.sound.status == 'stop':
+					# Clean memory
+					self.release_audio()
+				elif self.sound.status == 'play':
+					# Clean memory
+					self.sound.stop()
 					self.release_audio()
 		except:
 			print 'Cannot read gyroscope'
@@ -68,17 +94,22 @@ class AirGuitarApp(App):
 			self.sound.unload()
 			self.sound = None		
 
-	def play_sample(self, volume):
+	def play_sample(self, sound_type):
 		# If actual index is equal to the length of the audio file tuple
-		if self.file_to_read_index == len(self.audio_files):
+		if self.note_file_index == len(self.audio_files_notes):
 			# We've read all the file, start again from index 0
-			self.file_to_read_index = 0
-		# Play sound	
-		self.sound = SoundLoader.load(self.audio_files[self.file_to_read_index])
-		self.sound.volume = volume
+			self.note_file_index = 0
+		if self.chord_file_index == len(self.audio_files_chords):
+			# We've read all the file, start again from index 0
+			self.chord_file_index = 0
+		if sound_type == "note":
+			# Play sound
+			self.sound = SoundLoader.load(self.audio_files_notes[self.note_file_index])
+		if sound_type == "chord":
+			# Play sound
+			self.sound = SoundLoader.load(self.audio_files_chords[self.chord_file_index])
+		self.sound.volume = self.volume
 		self.sound.play()
-		# Increment index
-		self.file_to_read_index = self.file_to_read_index + 1
 
 if __name__ == '__main__':
 	AirGuitarApp().run()
